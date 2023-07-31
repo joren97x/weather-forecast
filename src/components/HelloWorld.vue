@@ -8,6 +8,7 @@
     const apiKEY = '996fa9f7cf03c2f6c3a790bc448cc60f'
     const lat = ref('')
     const lon = ref('')
+    const loading = ref(false)
 
     //WEATHER VARIABLES
     const weatherData = ref(null)
@@ -17,14 +18,22 @@
     const wind = ref('')
     const currentTemp = ref([])
     const currentTime = ref([])
+    const weatherDesc = ref('')
     let myChart
     const currentDate = ref('')
     const weatherDataByDay  = ref([])
     const card = ref(0)
 
+    const cityRules = [
+        value => {
+            if(value) return true
+            return `Must contain at least 1 character`
+        }
+    ]
+
         onMounted(() => {
 
-            currentDate.value = formatCurrentDate()
+            currentDate.value = formatCurrentDate(new Date())
 
             const ctx = myChartRef.value.getContext('2d')
             myChart = new Chart(ctx, {
@@ -73,10 +82,11 @@
         console.log(error)
     })
 
-    function getWeatherData() {
+    async function getWeatherData() {
 
+        loading.value = true
         city.value = city.value
-
+        
         weatherData.value = null
         currentWeather.value = null
         humidity.value = ''
@@ -85,9 +95,10 @@
         currentTime.value = []
         weatherDataByDay.value  = []
         
-        axios.get(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
+        await axios.get(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
         .then(response => {
 
+            loading.value = false
             const forecasts = response.data.list;
 
             // Group forecasts by date (assuming the list is ordered by time)
@@ -145,6 +156,8 @@
         axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
         .then(response => {
             currentWeather.value = response.data
+            weatherDesc.value = currentWeather.value.weather[0].description
+            
             console.log(currentWeather)
         })
         .catch(err => {
@@ -163,8 +176,9 @@
         return `${formattedHours}:${formattedMinutes} ${ampm}`;
     }
 
-    function formatCurrentDate() {
-        const date = new Date();
+    function formatCurrentDate(param_date) {
+        const date = new Date(param_date);
+        console.log(date)
         const options = {
             hour: 'numeric',
             minute: 'numeric',
@@ -203,6 +217,11 @@
                 currentTemp.value.push(Math.floor((weather.forecasts[i].main.temp - 273.15) * (9 / 5) + 32))
                 currentTime.value.push(formatTime(weather.forecasts[i].dt_txt))
             }
+            console.log(weather)
+            currentDate.value = formatCurrentDate(weather.forecasts[0].dt_txt)
+            weatherDesc.value = weather.forecasts[0].weather[0].description
+            humidity.value = weather.forecasts[0].main.humidity
+            wind.value = Math.floor(weather.forecasts[0].wind.speed * 2.23694)
             myChart.data.datasets[0].data = currentTemp.value
             myChart.data.labels = currentTime.value
             myChart.options.scales.y.suggestedMin = (Math.min(...currentTemp.value) - 0.5)
@@ -230,8 +249,9 @@
     <v-container>
         <v-container>
             <v-row>
-                <v-col cols="4" class="text-center">
-                    <v-text-field label="Your city" v-model="city" @keydown.enter="getCoordinates()" >
+                    
+                <v-col  xs="12" sm="12" cols="12" md="4" lg="4" xl="4" class="text-center">
+                    <v-text-field label="Your city" v-model="city" :rules="cityRules" @keydown.enter="getCoordinates()" >
                     
                         <template v-slot:append-inner>
                             <v-fade-transition>
@@ -242,9 +262,17 @@
                         </template>
 
                     </v-text-field>
-                    <h3>{{ currentDate }}</h3>
+                    <v-container v-if="loading">
+                        <v-progress-circular
+                        :width="3"
+                        color="red"
+                        indeterminate
+                        ></v-progress-circular>
+                    </v-container>
+                    <v-container v-else>
+                        <h3>{{ currentDate }}</h3>
                     <h2 class="my-3 text-h3"> <v-icon :icon="currentWeather ? getWeatherIconMap(currentWeather.weather[0].icon) : ''" /> <p class="text-h4">{{ currentTemp[0] + '°F' }}</p> </h2>
-                    <h3 class="text-capitalize">{{ currentWeather ? currentWeather.weather[0].description : '' }}</h3>
+                    <h3 class="text-capitalize">{{ weatherDesc }}</h3>
                     <v-row class="mt-3">
                         <v-col>
                             <h5>Wind Speed   </h5>
@@ -255,8 +283,10 @@
                             {{humidity+ '%'}}
                         </v-col>
                     </v-row>
+                    </v-container>
+                    
                 </v-col>
-                <v-col cols="8">
+                <v-col cols="12" xs="12" sm="12" md="8" lg="8" xl="8">
                     <canvas ref="myChartRef"></canvas>
                     <v-row class="mt-3">
                         
