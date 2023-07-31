@@ -2,7 +2,7 @@ const { defineConfig } = require('@vue/cli-service')
 module.exports = defineConfig({
   transpileDependencies: true,
 
-  publicPath: '/weather-forecast-app/',
+  publicPath: '/weather-forecast/',
 
   pluginOptions: {
     vuetify: {
