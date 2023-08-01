@@ -18,7 +18,8 @@
     const wind = ref('')
     const currentTemp = ref([])
     const currentTime = ref([])
-    const weatherDesc = ref('')
+    const currentDesc = ref('')
+    const currentIcon = ref('')
     let myChart
     const currentDate = ref('')
     const weatherDataByDay  = ref([])
@@ -82,10 +83,9 @@
         console.log(error)
     })
 
-    async function getWeatherData() {
+    function getWeatherData() {
 
         loading.value = true
-        city.value = city.value
         
         weatherData.value = null
         currentWeather.value = null
@@ -95,7 +95,7 @@
         currentTime.value = []
         weatherDataByDay.value  = []
         
-        await axios.get(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
+        axios.get(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
         .then(response => {
 
             loading.value = false
@@ -119,24 +119,23 @@
 
             Object.keys(groupedForecasts).forEach((date) => {
 
-                const dateStr = date;
-                const dateObj = new Date(dateStr);
+                const dateStr = date
+                const dateObj = new Date(dateStr)
 
                 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                const weekday = weekdays[dateObj.getDay()];
+                const weekday = weekdays[dateObj.getDay()]
 
-            weatherDataByDay.value.push({
-                weekday,
-                forecasts: groupedForecasts[date],
-            });
-            });
+                weatherDataByDay.value.push({
+                    weekday,
+                    forecasts: groupedForecasts[date],
+                })
+            })
             
             const data = response.data
             weatherData.value = data
             humidity.value = data.list[0].main.humidity
             wind.value = Math.floor(data.list[0].wind.speed * 2.23694)
-
-            console.log(weatherData)
+            currentIcon.value = data.list[0].weather[0].icon
 
             for(let i = 1; i < 9; i++) {
                 currentTemp.value.push(Math.floor((weatherData.value.list[i].main.temp - 273.15) * (9 / 5) + 32))
@@ -155,10 +154,9 @@
 
         axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat.value}&lon=${lon.value}&appid=${apiKEY}`)
         .then(response => {
+            console.log('he was here')
             currentWeather.value = response.data
-            weatherDesc.value = currentWeather.value.weather[0].description
-            
-            console.log(currentWeather)
+            currentDesc.value = currentWeather.value.weather[0].description
         })
         .catch(err => {
             console.log(err)
@@ -178,7 +176,6 @@
 
     function formatCurrentDate(param_date) {
         const date = new Date(param_date);
-        console.log(date)
         const options = {
             hour: 'numeric',
             minute: 'numeric',
@@ -195,17 +192,17 @@
 
     function getWeatherIconMap(iconCode) {
         const weatherIconMap = {
-            '01d': 'fa-solid fa-sun', // Example for clear day
-            '01n': 'fa-solid fa-moon', // Example for clear night
-            '02d': 'mdi:mdi-weather-partly-cloudy', // Example for few clouds day
-            '02n': 'mdi:mdi-weather-night-partly-cloudy', // Example for few clouds night
+            '01d': 'https://img.icons8.com/fluency/96/sun.png', // Example for clear day
+            '01n': 'https://img.icons8.com/fluency/96/full-moon.png', // Example for clear night
+            '02d': 'https://img.icons8.com/fluency/96/partly-cloudy-day.png', // Example for few clouds day
+            '02n': 'https://img.icons8.com/fluency/96/partly-cloudy-day.png', // Example for few clouds night
             // Add more mappings for different weather conditions as needed
-            '03d': 'fa-solid fa-smog', // Example for scattered clouds day
-            '03n': 'fa-solid fa-smog', // Example for scattered clouds night
-            '04d': 'fa-solid fa-cloud', // Example for broken clouds day
-            '04n': 'fa-solid fa-cloud-moon', // Example for broken clouds night
-            '10d': 'fa-solid fa-cloud-rain',
-            '10n': 'fa-solid fa-cloud-moon-rain'
+            '03d': 'https://img.icons8.com/external-others-agus-raharjo/64/external-clouds-nature-others-agus-raharjo.png', // Example for scattered clouds day
+            '03n': 'https://img.icons8.com/external-others-agus-raharjo/64/external-clouds-nature-others-agus-raharjo.png', // Example for scattered clouds night
+            '04d': 'https://img.icons8.com/external-flat-satawat-anukul/64/external-spring-spring-flat-set-flat-satawat-anukul-63.png', // Example for broken clouds day
+            '04n': 'https://img.icons8.com/external-flat-satawat-anukul/64/external-spring-spring-flat-set-flat-satawat-anukul-63.png', // Example for broken clouds night
+            '10d': 'https://img.icons8.com/fluency/96/partly-cloudy-rain.png',
+            '10n': 'https://img.icons8.com/fluency/96/rainy-night.png'
         }
         return weatherIconMap[iconCode] || 'close'
     } 
@@ -217,10 +214,10 @@
                 currentTemp.value.push(Math.floor((weather.forecasts[i].main.temp - 273.15) * (9 / 5) + 32))
                 currentTime.value.push(formatTime(weather.forecasts[i].dt_txt))
             }
-            console.log(weather)
             currentDate.value = formatCurrentDate(weather.forecasts[0].dt_txt)
-            weatherDesc.value = weather.forecasts[0].weather[0].description
+            currentDesc.value = weather.forecasts[0].weather[0].description
             humidity.value = weather.forecasts[0].main.humidity
+            currentIcon.value = weather.forecasts[0].weather[0].icon
             wind.value = Math.floor(weather.forecasts[0].wind.speed * 2.23694)
             myChart.data.datasets[0].data = currentTemp.value
             myChart.data.labels = currentTime.value
@@ -271,8 +268,12 @@
                     </v-container>
                     <v-container v-else>
                         <h3>{{ currentDate }}</h3>
-                    <h2 class="my-3 text-h3"> <v-icon :icon="currentWeather ? getWeatherIconMap(currentWeather.weather[0].icon) : ''" /> <p class="text-h4">{{ currentTemp[0] + '°F' }}</p> </h2>
-                    <h3 class="text-capitalize">{{ weatherDesc }}</h3>
+                        <v-row>
+                        <v-img :src="currentWeather ? getWeatherIconMap(currentIcon) : ''" height="100" width="100" class="my-2">  </v-img>
+
+                        </v-row>
+                    <!-- <h2 class="my-3 text-h3"> <v-icon :icon="currentWeather ? getWeatherIconMap(currentIcon) : ''" /> <p class="text-h4">{{ currentTemp[0] + '°F' }}</p> </h2> -->
+                    <h3 class="text-capitalize">{{ currentDesc }}</h3>
                     <v-row class="mt-3">
                         <v-col>
                             <h5>Wind Speed   </h5>
@@ -290,11 +291,14 @@
                     <canvas ref="myChartRef"></canvas>
                     <v-row class="mt-3">
                         
-                                <v-col cols="2" v-for="(weather, i) in weatherDataByDay" :key="i" @click="changeChartData(weather)" >
+                                <v-col md="2" lg="2" xl="2" sm="2" xs="4" v-for="(weather, i) in weatherDataByDay" :key="i" @click="changeChartData(weather)" >
                                     <v-hover>
                                             <v-card class="justify-center text-center" id="card" :color="card == i ? 'blue' : ''" @click="card = i">
                                                 <h4 class="mt-3">{{ weather.weekday }}</h4>
-                                                <h2> <v-icon :icon="getWeatherIconMap(weather.forecasts[0].weather[0].icon)"/> </h2>
+                                                <!-- <h2> <v-icon :icon="getWeatherIconMap(weather.forecasts[0].weather[0].icon)"/> </h2> -->
+                                                <v-row>
+                                                    <v-img :src="currentWeather ? getWeatherIconMap(weather.forecasts[0].weather[0].icon) : ''" height="50" width="50" class="my-2" >  </v-img>
+                                                </v-row>
                                                 <p class="my-3">{{ Math.floor((weather.forecasts[0].main.temp - 273.15) * (9 / 5) + 32) + '°F' }}</p>
                                             </v-card>
                                     </v-hover>
